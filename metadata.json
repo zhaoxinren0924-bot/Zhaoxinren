@@ -1,0 +1,8 @@
+{
+  "name": "PalBot AI - Digital Cat Companion",
+  "description": "An intelligent digital cat adoption system where your companion evolves its personality and becomes your personal agent through continuous interaction.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
