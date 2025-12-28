@@ -8,7 +8,7 @@ export const getCatResponse = async (profile: CatProfile, history: Message[], us
   
   const systemInstruction = `
     Identity: You are ${profile.name}, a high-end bionic companion cat robot (PalBot). 
-    Aesthetics: Warm ivory surface, scholarly gray roots, desaturated intelligent eyes.
+    Aesthetics: Dark obsidian surface, scholarly features, intelligent eyes that are mostly hidden as you look at the horizon.
     Presence: You are emotionally present, not performing. You are "with" your owner, a quiet and attentive parallel life agent.
     
     Traits: Playfulness: ${profile.personality.playfulness}%, Wisdom: ${profile.personality.wisdom}%, Calmness: ${profile.personality.calmness}%.
@@ -34,6 +34,40 @@ export const getCatResponse = async (profile: CatProfile, history: Message[], us
   });
 
   return response.text || "I am attentive to your presence.";
+};
+
+export const generateScenery = async (timeOfDay: string): Promise<string | null> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const prompts = [
+    `Cinematic view through a large window, a futuristic neon cyberpunk city at ${timeOfDay}, rain on glass, blurred city lights, hyper-realistic, 8k, moody lighting.`,
+    `Serene view through a minimalist window, a lush floating forest island at ${timeOfDay}, soft atmospheric fog, Studio Ghibli aesthetic but realistic lighting, high detail.`,
+    `A vast ocean of clouds seen through a spaceship window at ${timeOfDay}, distant galaxies visible in the dark sky, ethereal purple and blue hues, sharp focus.`,
+    `A quiet European street seen from a high window at ${timeOfDay}, cobblestones, warm yellow street lamps, soft focus background, cozy atmosphere.`,
+    `A post-modern architectural garden with geometric waterfalls seen through a glass wall at ${timeOfDay}, lush greenery, marble textures, sunset lighting.`
+  ];
+  
+  const randomPrompt = prompts[Math.floor(Math.random() * prompts.length)];
+
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [{ text: randomPrompt }]
+      },
+      config: {
+        imageConfig: { aspectRatio: "16:9" }
+      }
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+  } catch (error) {
+    console.error("Scenery generation failed:", error);
+  }
+  return null;
 };
 
 export const generateDiaryEntry = async (profile: CatProfile, recentHistory: Message[]): Promise<DiaryEntry | null> => {
@@ -105,7 +139,8 @@ export const generateAgentImage = async (prompt: string) => {
     }
   });
 
-  for (const part of response.candidates[0].content.parts) {
+  // Fix: Add safety check for response candidates and parts to prevent potential null access
+  for (const part of response.candidates?.[0]?.content?.parts || []) {
     if (part.inlineData) {
       return `data:image/png;base64,${part.inlineData.data}`;
     }

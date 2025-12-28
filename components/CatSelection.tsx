@@ -34,9 +34,9 @@ const CatSelection: React.FC<CatSelectionProps> = ({ onSelect }) => {
 
       <div className="bg-white rounded-[3rem] p-12 border border-gray-100 shadow-2xl flex flex-col md:flex-row items-center gap-12 w-full max-w-3xl">
         <div className="w-64 h-64 flex items-center justify-center">
-          {/* Fix: Replace PalBotState.Idle with PalBotState.IDLE_SELF */}
           <AnimatedCat 
             color={selectedColor.hex} 
+            colorId={selectedColor.id}
             state={PalBotState.IDLE_SELF} 
             scale={1} 
             personality={INITIAL_PERSONALITY} 
@@ -63,7 +63,7 @@ const CatSelection: React.FC<CatSelectionProps> = ({ onSelect }) => {
                   key={color.id}
                   onClick={() => setSelectedColor(color)}
                   className={`w-10 h-10 rounded-full border-2 transition-all ${selectedColor.id === color.id ? 'border-gray-900 scale-125 shadow-lg' : 'border-transparent hover:scale-110'}`}
-                  style={{ backgroundColor: color.hex }}
+                  style={{ backgroundColor: color.hex, backgroundImage: color.id === 'tuxedo' ? 'linear-gradient(45deg, #020202 50%, #FDFCF0 50%)' : 'none' }}
                   title={color.name}
                 />
               ))}

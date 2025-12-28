@@ -24,13 +24,24 @@ const MOCK_VISITORS: VisitorCat[] = [
   {
     id: 'v2',
     name: 'Shadow',
-    color: 'midnight',
-    archetype: 'Shadow Guardian',
+    color: 'umber',
+    archetype: 'Amber Guardian',
     personality: { playfulness: 20, wisdom: 90, loyalty: 80, curiosity: 30, calmness: 85 },
     learnedContext: '',
     adoptedAt: 0,
     distance: '0.5ly',
     status: 'Deep meditation'
+  },
+  {
+    id: 'v3',
+    name: 'Patch',
+    color: 'tuxedo',
+    archetype: 'Parallel Agent',
+    personality: { playfulness: 50, wisdom: 50, loyalty: 50, curiosity: 50, calmness: 50 },
+    learnedContext: '',
+    adoptedAt: 0,
+    distance: '2.1ly',
+    status: 'Observing'
   }
 ];
 
@@ -81,19 +92,16 @@ const CommunitySpace: React.FC<CommunitySpaceProps> = ({ userProfile }) => {
       </div>
 
       <div className="relative w-full max-w-5xl h-[500px] bg-white rounded-[4rem] border border-gray-100 shadow-sm overflow-hidden flex items-center justify-around px-12">
-        {/* 背景装饰 */}
         <div className="absolute inset-0 opacity-5 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] border border-gray-900 rounded-full"></div>
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] border border-gray-900 rounded-full"></div>
-          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] border border-gray-900 rounded-full"></div>
         </div>
 
-        {/* 用户自己的猫 */}
         <div className="flex flex-col items-center gap-6 z-10 transition-all duration-1000">
           <div className="w-64 h-64 scale-90">
-            {/* Fix: Replace PalBotState.Interaction and PalBotState.Idle with correct enums */}
             <AnimatedCat 
-              color={CAT_COLORS.find(c => c.id === userProfile.color)?.hex || '#9CA3AF'} 
+              color={CAT_COLORS.find(c => c.id === userProfile.color)?.hex || '#020202'} 
+              colorId={userProfile.color}
               state={visitor ? PalBotState.INTERACTION : PalBotState.IDLE_SELF} 
               scale={1} 
               personality={userProfile.personality} 
@@ -105,7 +113,6 @@ const CommunitySpace: React.FC<CommunitySpaceProps> = ({ userProfile }) => {
           </div>
         </div>
 
-        {/* 访客猫或扫描状态 */}
         <div className="flex flex-col items-center gap-6 z-10 min-w-[256px]">
           {isScanning ? (
             <div className="w-64 h-64 flex items-center justify-center relative">
@@ -115,9 +122,9 @@ const CommunitySpace: React.FC<CommunitySpaceProps> = ({ userProfile }) => {
           ) : visitor ? (
             <div className="flex flex-col items-center gap-6 animate-in zoom-in fade-in duration-1000">
               <div className="w-64 h-64 scale-90">
-                {/* Fix: Replace PalBotState.Interaction with PalBotState.INTERACTION */}
                 <AnimatedCat 
-                  color={CAT_COLORS.find(c => c.id === visitor.color)?.hex || '#9CA3AF'} 
+                  color={CAT_COLORS.find(c => c.id === visitor.color)?.hex || '#020202'} 
+                  colorId={visitor.color}
                   state={PalBotState.INTERACTION} 
                   scale={1} 
                   personality={visitor.personality} 
@@ -142,24 +149,12 @@ const CommunitySpace: React.FC<CommunitySpaceProps> = ({ userProfile }) => {
           )}
         </div>
 
-        {/* 顶部互动气泡 */}
         <div className="absolute top-12 left-1/2 -translate-x-1/2 max-w-md w-full px-8">
           <div className="bg-white/80 backdrop-blur-md p-6 rounded-3xl border border-gray-100 shadow-lg text-center">
             <p className={`text-sm font-medium leading-relaxed ${isProcessing ? 'text-gray-300 italic animate-pulse' : 'text-gray-600'}`}>
               {interactionLog}
             </p>
           </div>
-        </div>
-      </div>
-
-      <div className="mt-12 flex gap-8">
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-green-500"></div>
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Plaza Active: 1,402 Agents Online</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 rounded-full bg-blue-500"></div>
-          <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Signal: Stable</span>
         </div>
       </div>
     </div>
