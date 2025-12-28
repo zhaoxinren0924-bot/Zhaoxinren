@@ -1,9 +1,9 @@
 
 export enum PalBotState {
-  IDLE_SELF = 'IDLE_SELF',           // Default: Cat living its own parallel life
-  SHARED_PRESENCE = 'SHARED_PRESENCE', // Aware of user, but not demanding attention
-  INTERACTION = 'INTERACTION',       // Explicit dialogue/sync mode
-  RETURNING = 'RETURNING'            // Transitional state back to self
+  IDLE_SELF = 'IDLE_SELF',
+  SHARED_PRESENCE = 'SHARED_PRESENCE',
+  INTERACTION = 'INTERACTION',
+  RETURNING = 'RETURNING'
 }
 
 export interface PersonalityTraits {
@@ -31,6 +31,13 @@ export interface CatProfile {
   learnedContext: string;
   adoptedAt: number;
   diary?: DiaryEntry[];
+}
+
+export interface Landmark {
+  name: string;
+  city: string;
+  distanceFromStart: number; // 从广州出发的总里程 (km)
+  prompt: string;
 }
 
 export interface VisitorCat extends CatProfile {

@@ -12,7 +12,7 @@ const MeDiary: React.FC<MeDiaryProps> = ({ profile, setProfile }) => {
   const diary = profile.diary || [];
 
   const handleResetData = () => {
-    if (confirm("Resetting will terminate the neural bond and wipe all scholarly reflections. Proceed?")) {
+    if (confirm("终止这段善缘将抹去所有的修行记录。施主确定吗？")) {
       localStorage.removeItem('palbot_profile');
       window.location.reload();
     }
@@ -44,13 +44,13 @@ const MeDiary: React.FC<MeDiaryProps> = ({ profile, setProfile }) => {
           </div>
           <div className="text-center">
             <h2 className="text-3xl font-serif text-gray-900 mb-1">{profile.name}</h2>
-            <p className="text-[10px] uppercase tracking-[0.5em] text-gray-400 font-bold">Parallel Life Agent Node</p>
+            <p className="text-[10px] uppercase tracking-[0.5em] text-gray-400 font-bold">Zen Master Node / 禅意节点</p>
           </div>
         </div>
 
         {/* Neural Parameters */}
         <section className="bg-white rounded-[3.5rem] p-10 border border-gray-100 shadow-[0_10px_40px_rgba(0,0,0,0.02)]">
-           <h3 className="text-[10px] uppercase tracking-[0.6em] text-gray-300 font-bold mb-10 text-center">Bionic Personality Matrix</h3>
+           <h3 className="text-[10px] uppercase tracking-[0.6em] text-gray-300 font-bold mb-10 text-center">Spiritual Matrix / 修行矩阵</h3>
            <PersonalityChart traits={profile.personality} />
         </section>
 
@@ -58,10 +58,10 @@ const MeDiary: React.FC<MeDiaryProps> = ({ profile, setProfile }) => {
         <section className="space-y-10">
           <div className="flex items-end justify-between px-4">
             <div>
-              <h3 className="text-2xl font-serif italic text-gray-800">Neural Reflections</h3>
-              <p className="text-[9px] uppercase tracking-[0.4em] text-gray-300 font-bold mt-2">Chronological Pulse Logs</p>
+              <h3 className="text-2xl font-serif italic text-gray-800">Dharma Reflections</h3>
+              <p className="text-[9px] uppercase tracking-[0.4em] text-gray-300 font-bold mt-2">Spiritual Logs / 禅思录</p>
             </div>
-            <span className="text-[11px] text-gray-300 font-bold tracking-widest">{diary.length} LOGS</span>
+            <span className="text-[11px] text-gray-300 font-bold tracking-widest">{diary.length} GATHAS</span>
           </div>
 
           <div className="space-y-8">
@@ -89,9 +89,9 @@ const MeDiary: React.FC<MeDiaryProps> = ({ profile, setProfile }) => {
               </div>
             )) : (
               <div className="bg-gray-50/50 border border-dashed border-gray-200 p-16 rounded-[3.5rem] text-center">
-                <p className="text-gray-300 font-serif italic text-xl mb-3">No reflections recorded yet.</p>
+                <p className="text-gray-300 font-serif italic text-xl mb-3">万籁俱寂，尚无修行录。</p>
                 <p className="text-[10px] text-gray-400 uppercase tracking-[0.3em] leading-relaxed max-w-xs mx-auto">
-                  Engage in neural sync sessions to document your parallel journey.
+                  多与禅师猫沟通，感悟当下的智慧。
                 </p>
               </div>
             )}
@@ -104,12 +104,8 @@ const MeDiary: React.FC<MeDiaryProps> = ({ profile, setProfile }) => {
             onClick={handleResetData}
             className="text-[10px] text-gray-300 hover:text-red-400 font-bold uppercase tracking-[0.6em] transition-all"
           >
-            Terminal Reset / 终止连接
+            Terminal Reset / 终止缘分
           </button>
-          <div className="flex gap-4 opacity-20">
-            <span className="text-[8px] text-gray-400 uppercase tracking-widest">Protocol 2.5.A</span>
-            <span className="text-[8px] text-gray-400 uppercase tracking-widest">Grounded Bionics</span>
-          </div>
         </div>
       </div>
       <style dangerouslySetInnerHTML={{ __html: `.no-scrollbar::-webkit-scrollbar { display: none; }` }} />

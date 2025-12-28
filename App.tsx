@@ -1,11 +1,12 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { GoogleGenAI, Modality, LiveServerMessage } from '@google/genai';
+import { GoogleGenAI, Modality, LiveServerMessage, Type, FunctionDeclaration } from '@google/genai';
 import { CatProfile, Message } from './types';
 import CatSelection from './components/CatSelection';
 import ChatInterface from './components/ChatInterface';
 import CommunitySpace from './components/CommunitySpace';
 import MeDiary from './components/MeDiary';
+import QueueScreen from './components/QueueScreen';
 import { decode, decodeAudioData, createBlob } from './services/audioUtils';
 
 const App: React.FC = () => {
@@ -13,6 +14,8 @@ const App: React.FC = () => {
   const [currentView, setCurrentView] = useState<'chat' | 'plaza' | 'me'>('chat');
   const [isVoiceActive, setIsVoiceActive] = useState(false);
   const [liveMessages, setLiveMessages] = useState<Message[]>([]);
+  const [voiceAction, setVoiceAction] = useState<{ action: string; targetX?: number } | null>(null);
+  const [isInQueue, setIsInQueue] = useState(false);
   
   const sessionRef = useRef<any>(null);
   const audioContextsRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
@@ -24,6 +27,9 @@ const App: React.FC = () => {
     const saved = localStorage.getItem('palbot_profile');
     if (saved) {
       try { setProfile(JSON.parse(saved)); } catch (e) {}
+    } else {
+      // 如果没有存档，进入排队
+      setIsInQueue(true);
     }
   }, []);
 
@@ -36,6 +42,26 @@ const App: React.FC = () => {
       stopVoiceSession();
     } else {
       await startVoiceSession();
+    }
+  };
+
+  const controlCatActionDeclaration: FunctionDeclaration = {
+    name: 'control_cat_action',
+    parameters: {
+      type: Type.OBJECT,
+      description: 'Control the physical actions of the bionic cat companion.',
+      properties: {
+        action: {
+          type: Type.STRING,
+          description: 'The specific movement to perform.',
+          enum: ['sit', 'walk', 'crouch', 'jump', 'sleep']
+        },
+        targetX: {
+          type: Type.NUMBER,
+          description: 'The horizontal destination coordinate (0-100) if the action is "walk".'
+        }
+      },
+      required: ['action']
     }
   };
 
@@ -69,6 +95,27 @@ const App: React.FC = () => {
             scriptProcessor.connect(inputCtx.destination);
           },
           onmessage: async (m: LiveServerMessage) => {
+            if (m.toolCall) {
+              for (const fc of m.toolCall.functionCalls) {
+                if (fc.name === 'control_cat_action') {
+                  const args = fc.args as { action: string; targetX?: number };
+                  setVoiceAction({ action: args.action, targetX: args.targetX });
+                  if (args.action === 'jump') {
+                    setTimeout(() => setVoiceAction(null), 1000);
+                  }
+                  sessionPromise.then(session => {
+                    session.sendToolResponse({
+                      functionResponses: {
+                        id: fc.id,
+                        name: fc.name,
+                        response: { result: "Action initiated successfully." }
+                      }
+                    });
+                  });
+                }
+              }
+            }
+
             if (m.serverContent?.inputTranscription) currentInput += m.serverContent.inputTranscription.text;
             if (m.serverContent?.outputTranscription) currentOutput += m.serverContent.outputTranscription.text;
             
@@ -111,8 +158,12 @@ const App: React.FC = () => {
           responseModalities: [Modality.AUDIO],
           inputAudioTranscription: {},
           outputAudioTranscription: {},
+          tools: [{ functionDeclarations: [controlCatActionDeclaration] }],
           speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
-          systemInstruction: `You are ${profile.name}, a scholarly bionic cat companion. You exist in a parallel digital reality to your user. You are currently in a real-time neural voice link. Speak concisely, with ancient wisdom and modern clarity. Your goal is to become the user's personal agent through this deep synchronization.`
+          systemInstruction: `你是 ${profile.name}，一只修行的禅师猫。你游历万水千山，只为体悟当下的清净。
+          你的言语慈悲，充满东方哲学智慧。你可以使用 'control_cat_action' 工具来调整你的身体仪态。
+          如果施主（用户）希望你行走、坐禅（sit）或入眠（sleep），请欣然应允并执行。
+          记住，你的存在是为了抚平世人的焦虑，共证菩提。`
         }
       });
       sessionRef.current = await sessionPromise;
@@ -128,12 +179,19 @@ const App: React.FC = () => {
     audioContextsRef.current?.input.close();
     audioContextsRef.current?.output.close();
     setIsVoiceActive(false);
+    setVoiceAction(null);
+  };
+
+  const handleQueueComplete = () => {
+    setIsInQueue(false);
   };
 
   return (
     <div className={`h-screen w-full bg-[#050505] flex flex-col relative overflow-hidden transition-colors duration-1000`}>
       <main className="flex-1 relative">
-        {!profile ? (
+        {isInQueue ? (
+          <QueueScreen onQueueComplete={handleQueueComplete} />
+        ) : !profile ? (
           <CatSelection onSelect={setProfile} />
         ) : (
           <div className="h-full w-full">
@@ -143,7 +201,8 @@ const App: React.FC = () => {
                 setProfile={setProfile} 
                 onGoToStore={() => {}} 
                 externalMessages={liveMessages} 
-                isVoiceActive={isVoiceActive} 
+                isVoiceActive={isVoiceActive}
+                voiceAction={voiceAction}
               />
             )}
             {currentView === 'plaza' && <CommunitySpace userProfile={profile} />}
@@ -152,11 +211,9 @@ const App: React.FC = () => {
         )}
       </main>
 
-      {profile && (
+      {profile && !isInQueue && (
         <div className="absolute bottom-0 inset-x-0 h-[22%] z-[100] flex flex-col justify-end pointer-events-none">
-          {/* Ambient Navigation Layer */}
           <nav className="w-full max-w-sm mx-auto px-6 pb-12 flex items-center justify-between pointer-events-auto">
-            {/* Nav: Presence/Chat */}
             <button 
               onClick={() => setCurrentView('chat')} 
               className={`p-4 transition-all duration-500 active:scale-90 ${currentView === 'chat' ? 'opacity-100' : 'opacity-20 hover:opacity-40'}`}
@@ -165,7 +222,6 @@ const App: React.FC = () => {
               <div className={`w-1.5 h-1.5 rounded-full transition-all duration-700 ${currentView === 'chat' ? 'bg-white shadow-[0_0_12px_white]' : 'bg-white'}`}></div>
             </button>
 
-            {/* Central Neural Sync Button */}
             <button 
               onClick={toggleVoice}
               className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-700 active:scale-95 ${
@@ -194,7 +250,6 @@ const App: React.FC = () => {
               )}
             </button>
 
-            {/* Nav: Profile/Node */}
             <button 
               onClick={() => setCurrentView('me')} 
               className={`p-4 transition-all duration-500 active:scale-90 ${currentView === 'me' ? 'opacity-100' : 'opacity-20 hover:opacity-40'}`}

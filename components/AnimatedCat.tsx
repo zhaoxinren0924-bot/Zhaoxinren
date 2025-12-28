@@ -8,9 +8,11 @@ interface AnimatedCatProps {
   state: PalBotState;
   scale?: number;
   personality: PersonalityTraits;
-  actionOverride?: 'sit' | 'sleep' | 'jump' | 'stand' | 'crouch';
+  actionOverride?: 'sit' | 'sleep' | 'jump' | 'stand' | 'crouch' | 'walk';
   moodOverride?: 'happy' | 'sleep' | 'neutral';
   rotation?: number;
+  walkCycle?: number; // 0 to 1
+  facingLeft?: boolean;
 }
 
 const AnimatedCat: React.FC<AnimatedCatProps> = ({ 
@@ -21,13 +23,14 @@ const AnimatedCat: React.FC<AnimatedCatProps> = ({
   personality,
   actionOverride,
   moodOverride,
-  rotation = 0
+  rotation = 0,
+  walkCycle = 0,
+  facingLeft = false
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isBlinking, setIsBlinking] = useState(false);
-  const [earWiggle, setEarWiggle] = useState(0); // 耳朵摆动角度
+  const [earWiggle, setEarWiggle] = useState(0);
 
-  // --- 眨眼计时器逻辑 ---
   useEffect(() => {
     let blinkTimeout: ReturnType<typeof setTimeout>;
     const triggerBlink = () => {
@@ -44,20 +47,18 @@ const AnimatedCat: React.FC<AnimatedCatProps> = ({
     return () => clearTimeout(blinkTimeout);
   }, []);
 
-  // --- 耳朵微动计时器逻辑 ---
   useEffect(() => {
     let wiggleTimeout: ReturnType<typeof setTimeout>;
     const triggerWiggle = () => {
-      const nextWiggleIn = Math.random() * 3000 + 1000; // 1-4秒随机
+      const nextWiggleIn = Math.random() * 3000 + 1000;
       wiggleTimeout = setTimeout(() => {
-        // 模拟快速抖动两次
-        setEarWiggle(0.1);
-        setTimeout(() => setEarWiggle(-0.05), 100);
-        setTimeout(() => setEarWiggle(0.08), 200);
+        setEarWiggle(0.12);
+        setTimeout(() => setEarWiggle(-0.06), 120);
+        setTimeout(() => setEarWiggle(0.09), 240);
         setTimeout(() => {
           setEarWiggle(0);
           triggerWiggle();
-        }, 300);
+        }, 350);
       }, nextWiggleIn);
     };
     triggerWiggle();
@@ -79,51 +80,99 @@ const AnimatedCat: React.FC<AnimatedCatProps> = ({
   };
 
   const drawCat = (ctx: CanvasRenderingContext2D, config: any) => {
-    const { color, action, scale, rotation, mood, isBlinkingNow, earWiggleVal } = config;
+    const { color, action, scale, rotation, mood, isBlinkingNow, earWiggleVal, walkCycle, facingLeft } = config;
     const eyeColor = '#7FBF7F';
     const centerX = 100;
     const centerY = 140;
 
     ctx.save();
     ctx.translate(centerX, centerY);
-    ctx.rotate(rotation);
+    if (facingLeft) ctx.scale(-1, 1);
+    
+    const bodyTilt = action === 'walk' ? Math.cos(walkCycle * Math.PI * 2) * 0.03 : 0;
+    ctx.rotate(rotation + bodyTilt);
 
     if (action === 'sit') {
-      ctx.scale(1, 0.85);
+      ctx.scale(1, 0.88);
     } else if (action === 'sleep') {
       ctx.scale(1.3, 0.7);
       ctx.rotate(-Math.PI / 12);
-    } else if (action === 'jump') {
-      ctx.translate(0, -40);
-      ctx.scale(0.95, 1.1);
     } else if (action === 'crouch') {
-      ctx.scale(1.1, 0.6);
+      ctx.scale(1.2, 0.6);
+    } else if (action === 'walk') {
+      const bob = Math.abs(Math.sin(walkCycle * Math.PI * 2)) * -4;
+      ctx.translate(0, bob);
     }
+    
     ctx.scale(scale, scale);
 
-    // --- 尾巴 ---
+    // --- 高级多节段物理尾巴 (The New Elegant Tail Engine) ---
     if (action !== 'sleep') {
       ctx.save();
+      const tailBaseX = 26;
+      const tailBaseY = 18;
+      
+      const segments = 12; 
+      const segmentLength = 6.5;
+      const tailWidth = 7;
+      
+      // 尾巴动力学参数 - 调低速度以实现“慢摇”
+      const time = Date.now() / 1000;
+      const speedScale = action === 'walk' ? 4.5 : 1.8; // 从 12/3.5 大幅降低
+      const amplitude = action === 'walk' ? 0.18 : 0.10; // 从 0.25/0.12 降低，增加从容感
+      
+      ctx.translate(tailBaseX, tailBaseY);
       ctx.fillStyle = color;
-      const baseX = 28;
-      const baseY = 25;
+      
+      const leftPoints: {x: number, y: number}[] = [];
+      const rightPoints: {x: number, y: number}[] = [];
+      
+      let currentAngle = action === 'walk' ? -Math.PI / 4 : -Math.PI / 2.2;
+      let curX = 0;
+      let curY = 0;
+
+      for (let i = 0; i <= segments; i++) {
+        // 波形传递
+        const phaseShift = i * 0.45;
+        const wave = Math.sin(time * speedScale - phaseShift) * amplitude;
+        
+        currentAngle += wave;
+        
+        const nextX = curX + Math.cos(currentAngle) * segmentLength;
+        const nextY = curY + Math.sin(currentAngle) * segmentLength;
+        
+        const normalAngle = currentAngle + Math.PI / 2;
+        const width = tailWidth * (1 - (i / segments) * 0.7);
+        
+        leftPoints.push({
+          x: curX + Math.cos(normalAngle) * width,
+          y: curY + Math.sin(normalAngle) * width
+        });
+        rightPoints.push({
+          x: curX - Math.cos(normalAngle) * width,
+          y: curY - Math.sin(normalAngle) * width
+        });
+
+        curX = nextX;
+        curY = nextY;
+      }
+
       ctx.beginPath();
-      ctx.moveTo(baseX, baseY);
-      if (mood === 'happy') {
-        ctx.bezierCurveTo(baseX + 30, baseY + 10, baseX + 50, baseY - 40, baseX + 30, baseY - 70);
-        ctx.arc(baseX + 25, baseY - 70, 6, 0, Math.PI, true);
-        ctx.bezierCurveTo(baseX + 40, baseY - 40, baseX + 20, baseY + 10, baseX - 5, baseY + 15);
-      } else {
-        ctx.bezierCurveTo(baseX + 25, baseY + 45, baseX - 10, baseY + 55, baseX - 45, baseY + 45);
-        ctx.arc(baseX - 45, baseY + 39, 6, Math.PI / 2, Math.PI * 1.5, false);
-        ctx.bezierCurveTo(baseX - 10, baseY + 45, baseX + 15, baseY + 35, baseX, baseY + 5);
+      ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
+      for (let i = 1; i < leftPoints.length; i++) {
+        ctx.lineTo(leftPoints[i].x, leftPoints[i].y);
+      }
+      ctx.arc(curX, curY, tailWidth * 0.3, currentAngle - Math.PI/2, currentAngle + Math.PI/2);
+      for (let i = rightPoints.length - 1; i >= 0; i--) {
+        ctx.lineTo(rightPoints[i].x, rightPoints[i].y);
       }
       ctx.closePath();
       ctx.fill();
+      
       ctx.restore();
     }
 
-    // --- 身体 ---
+    // --- 身体核心 ---
     ctx.fillStyle = color;
     ctx.beginPath();
     ctx.ellipse(0, 0, 45, 55, 0, 0, Math.PI * 2);
@@ -134,66 +183,58 @@ const AnimatedCat: React.FC<AnimatedCatProps> = ({
     ctx.arc(0, -50, 35, 0, Math.PI * 2);
     ctx.fill();
 
-    // --- 耳朵 (动态摆动设计) ---
+    // --- 耳朵 ---
     const drawEar = (isLeft: boolean) => {
       ctx.save();
-      // 设置耳朵基部中心为旋转点
       const pivotX = isLeft ? -21 : 21;
       const pivotY = -75;
       ctx.translate(pivotX, pivotY);
-      // 左右耳摆动方向相反或同步微调
       ctx.rotate(isLeft ? -earWiggleVal : earWiggleVal);
       ctx.translate(-pivotX, -pivotY);
-
       ctx.fillStyle = color;
       ctx.beginPath();
       if (isLeft) {
         ctx.moveTo(-10, -82);
-        ctx.quadraticCurveTo(-18, -98, -26, -92);
-        ctx.quadraticCurveTo(-34, -88, -32, -65);
+        ctx.quadraticCurveTo(-18, -100, -28, -94);
+        ctx.quadraticCurveTo(-36, -90, -32, -65);
       } else {
         ctx.moveTo(10, -82);
-        ctx.quadraticCurveTo(18, -98, 26, -92);
-        ctx.quadraticCurveTo(34, -88, 32, -65);
+        ctx.quadraticCurveTo(18, -100, 28, -94);
+        ctx.quadraticCurveTo(36, -90, 32, -65);
       }
-      ctx.closePath();
       ctx.fill();
-
-      // 内耳粉色
       ctx.fillStyle = '#FFB6C1';
       ctx.beginPath();
       if (isLeft) {
-        ctx.moveTo(-13, -83);
-        ctx.quadraticCurveTo(-18, -94, -24, -89);
-        ctx.quadraticCurveTo(-30, -86, -28, -70);
+        ctx.moveTo(-14, -84);
+        ctx.quadraticCurveTo(-19, -95, -25, -91);
+        ctx.quadraticCurveTo(-31, -88, -28, -72);
       } else {
-        ctx.moveTo(13, -83);
-        ctx.quadraticCurveTo(18, -94, 24, -89);
-        ctx.quadraticCurveTo(30, -86, 28, -70);
+        ctx.moveTo(14, -84);
+        ctx.quadraticCurveTo(19, -95, 25, -91);
+        ctx.quadraticCurveTo(31, -88, 28, -72);
       }
-      ctx.closePath();
       ctx.fill();
       ctx.restore();
     };
+    drawEar(true);
+    drawEar(false);
 
-    drawEar(true);  // 左耳
-    drawEar(false); // 右耳
-
-    // --- 眼睛 ---
+    // --- 眼睛/感知器 ---
     const isSleepMood = mood === 'sleep' || action === 'sleep';
     const isActuallyBlinking = isBlinkingNow && !isSleepMood;
     ctx.fillStyle = eyeColor;
     const eyeY = (isSleepMood || isActuallyBlinking) ? -48 : -50;
     
     if (isActuallyBlinking || isSleepMood) {
-      ctx.lineWidth = 2;
+      ctx.lineWidth = 2.5;
       ctx.strokeStyle = eyeColor;
       ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(-18, eyeY); ctx.lineTo(-6, eyeY); ctx.stroke();
       ctx.beginPath(); ctx.moveTo(6, eyeY); ctx.lineTo(18, eyeY); ctx.stroke();
     } else {
-      ctx.beginPath(); ctx.arc(-12, eyeY, 6, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(12, eyeY, 6, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(-12, eyeY, 6.5, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.arc(12, eyeY, 6.5, 0, Math.PI * 2); ctx.fill();
       ctx.fillStyle = '#000000';
       ctx.beginPath(); ctx.arc(-12, -50, 3, 0, Math.PI * 2); ctx.fill();
       ctx.beginPath(); ctx.arc(12, -50, 3, 0, Math.PI * 2); ctx.fill();
@@ -202,30 +243,40 @@ const AnimatedCat: React.FC<AnimatedCatProps> = ({
       ctx.beginPath(); ctx.arc(13, -51, 1.5, 0, Math.PI * 2); ctx.fill();
     }
 
-    // --- 鼻子/嘴巴 ---
     ctx.fillStyle = '#FFB6C1';
-    ctx.beginPath(); ctx.arc(0, -43, 3.5, 0, Math.PI * 2); ctx.fill();
-    if (!isSleepMood) {
-      ctx.strokeStyle = '#FFB6C1';
-      ctx.lineWidth = 1.5;
-      ctx.beginPath(); ctx.moveTo(0, -43); ctx.lineTo(0, -38); ctx.stroke();
-      ctx.beginPath(); ctx.arc(-5, -38, 5, 0, Math.PI / 2); ctx.stroke();
-      ctx.beginPath(); ctx.arc(5, -38, 5, Math.PI / 2, Math.PI); ctx.stroke();
-    }
+    ctx.beginPath(); ctx.arc(0, -43, 3, 0, Math.PI * 2); ctx.fill();
 
-    // --- 胡须 ---
-    ctx.strokeStyle = colorId === 'snow' ? '#CCCCCC' : '#AAAAAA';
-    ctx.lineWidth = 1;
-    for (let i = 0; i < 3; i++) {
-      ctx.beginPath(); ctx.moveTo(-8, -45 + i * 2); ctx.lineTo(-32, -47 + i * 3); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(8, -45 + i * 2); ctx.lineTo(32, -47 + i * 3); ctx.stroke();
-    }
-
-    // --- 四肢 ---
-    if (action === 'stand') {
+    const drawElegantLeg = (offsetX: number, offsetY: number, height: number, cycle: number, isBack: boolean) => {
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      const forwardPhase = (cycle % 1);
+      const isLifting = forwardPhase > 0.5;
+      const swingAngle = Math.sin(cycle * Math.PI * 2) * 0.35;
+      const liftHeight = isLifting ? Math.sin((forwardPhase - 0.5) * Math.PI * 2) * 8 : 0;
+      ctx.rotate(swingAngle);
+      if (isBack) ctx.globalAlpha = 0.55;
       ctx.fillStyle = color;
-      ctx.fillRect(-20, 35, 8, 25); ctx.fillRect(12, 35, 8, 25);
-      ctx.fillRect(-25, 40, 6, 20); ctx.fillRect(19, 40, 6, 20);
+      const legH = height - liftHeight;
+      const taperWidth = 5; 
+      ctx.beginPath();
+      ctx.moveTo(-taperWidth, 0); 
+      ctx.quadraticCurveTo(-taperWidth - 1, legH * 0.4, -2.5, legH); 
+      ctx.arc(0, legH, 2.8, Math.PI, 0, true);
+      ctx.quadraticCurveTo(taperWidth + 1, legH * 0.4, taperWidth, 0);
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    };
+
+    if (action === 'stand' || action === 'walk' || action === 'crouch') {
+      const legBaseY = action === 'crouch' ? 30 : 35;
+      const legHeight = action === 'crouch' ? 18 : 34; 
+      const gait1 = action === 'walk' ? walkCycle : 0;
+      const gait2 = action === 'walk' ? (walkCycle + 0.5) % 1 : 0;
+      drawElegantLeg(-16, legBaseY, legHeight, gait1, false); 
+      drawElegantLeg(14, legBaseY, legHeight, gait2, false);  
+      drawElegantLeg(-24, legBaseY + 2, legHeight - 2, gait2, true); 
+      drawElegantLeg(22, legBaseY + 2, legHeight - 2, gait1, true);  
     }
 
     ctx.restore();
@@ -236,25 +287,35 @@ const AnimatedCat: React.FC<AnimatedCatProps> = ({
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const config = {
-      color,
-      action: getDisplayAction(),
-      scale,
-      rotation,
-      mood: getDisplayMood(),
-      isBlinkingNow: isBlinking,
-      earWiggleVal: earWiggle
+
+    let raf: number;
+    const render = () => {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      const config = {
+        color,
+        action: getDisplayAction(),
+        scale,
+        rotation,
+        mood: getDisplayMood(),
+        isBlinkingNow: isBlinking,
+        earWiggleVal: earWiggle,
+        walkCycle,
+        facingLeft
+      };
+      drawCat(ctx, config);
+      raf = requestAnimationFrame(render);
     };
-    drawCat(ctx, config);
-  }, [color, state, scale, rotation, actionOverride, moodOverride, isBlinking, earWiggle]);
+    
+    raf = requestAnimationFrame(render);
+    return () => cancelAnimationFrame(raf);
+  }, [color, state, scale, rotation, actionOverride, moodOverride, isBlinking, earWiggle, walkCycle, facingLeft]);
 
   return (
     <canvas 
       ref={canvasRef} 
       width={200} 
       height={240} 
-      className="w-full h-full object-contain drop-shadow-2xl transition-all duration-700"
+      className="w-full h-full object-contain drop-shadow-2xl transition-transform duration-700"
     />
   );
 };
