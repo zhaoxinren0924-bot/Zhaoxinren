@@ -8,277 +8,213 @@ interface AnimatedCatProps {
   state: PalBotState;
   scale?: number;
   personality: PersonalityTraits;
+  earFoldLevel?: number; 
+  eyeState?: 'default' | 'amber'; 
   actionOverride?: 'sit' | 'sleep' | 'jump' | 'stand' | 'crouch' | 'walk';
-  moodOverride?: 'happy' | 'sleep' | 'neutral';
   rotation?: number;
-  walkCycle?: number; // 0 to 1
+  walkCycle?: number;
   facingLeft?: boolean;
 }
 
 const AnimatedCat: React.FC<AnimatedCatProps> = ({ 
-  color, 
-  colorId, 
+  color: baseColor, 
   state, 
   scale = 1, 
   personality,
+  earFoldLevel = 0,
+  eyeState = 'default',
   actionOverride,
-  moodOverride,
   rotation = 0,
   walkCycle = 0,
   facingLeft = false
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isBlinking, setIsBlinking] = useState(false);
-  const [earWiggle, setEarWiggle] = useState(0);
 
   useEffect(() => {
     let blinkTimeout: ReturnType<typeof setTimeout>;
     const triggerBlink = () => {
-      const nextBlinkIn = Math.random() * 4000 + 2000;
+      const baseInterval = Math.random() * 5000 + 4000;
+      const multiplier = 1 + (personality.calmness / 40);
       blinkTimeout = setTimeout(() => {
         setIsBlinking(true);
         setTimeout(() => {
           setIsBlinking(false);
           triggerBlink();
         }, 150);
-      }, nextBlinkIn);
+      }, baseInterval * multiplier);
     };
     triggerBlink();
     return () => clearTimeout(blinkTimeout);
-  }, []);
-
-  useEffect(() => {
-    let wiggleTimeout: ReturnType<typeof setTimeout>;
-    const triggerWiggle = () => {
-      const nextWiggleIn = Math.random() * 3000 + 1000;
-      wiggleTimeout = setTimeout(() => {
-        setEarWiggle(0.12);
-        setTimeout(() => setEarWiggle(-0.06), 120);
-        setTimeout(() => setEarWiggle(0.09), 240);
-        setTimeout(() => {
-          setEarWiggle(0);
-          triggerWiggle();
-        }, 350);
-      }, nextWiggleIn);
-    };
-    triggerWiggle();
-    return () => clearTimeout(wiggleTimeout);
-  }, []);
+  }, [personality.calmness]);
 
   const getDisplayAction = () => {
     if (actionOverride) return actionOverride;
-    switch (state) {
-      case PalBotState.INTERACTION: return 'stand';
-      case PalBotState.IDLE_SELF: return 'sit';
-      default: return 'sit';
-    }
-  };
-
-  const getDisplayMood = () => {
-    if (moodOverride) return moodOverride;
-    return state === PalBotState.INTERACTION ? 'happy' : 'neutral';
+    return state === PalBotState.INTERACTION ? 'stand' : 'sit';
   };
 
   const drawCat = (ctx: CanvasRenderingContext2D, config: any) => {
-    const { color, action, scale, rotation, mood, isBlinkingNow, earWiggleVal, walkCycle, facingLeft } = config;
-    const eyeColor = '#7FBF7F';
+    const { color, action, scale, rotation, isBlinkingNow, walkCycle, facingLeft, earFold, currentEyeState } = config;
     const centerX = 100;
-    const centerY = 140;
+    const centerY = 155; 
+
+    const adjustColor = (hex: string, amount: number) => {
+      const clamp = (val: number) => Math.min(Math.max(val, 0), 255);
+      const r = clamp(parseInt(hex.slice(1, 3), 16) + amount);
+      const g = clamp(parseInt(hex.slice(3, 5), 16) + amount);
+      const b = clamp(parseInt(hex.slice(5, 7), 16) + amount);
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    };
 
     ctx.save();
     ctx.translate(centerX, centerY);
     if (facingLeft) ctx.scale(-1, 1);
     
-    const bodyTilt = action === 'walk' ? Math.cos(walkCycle * Math.PI * 2) * 0.03 : 0;
-    ctx.rotate(rotation + bodyTilt);
-
-    if (action === 'sit') {
-      ctx.scale(1, 0.88);
-    } else if (action === 'sleep') {
-      ctx.scale(1.3, 0.7);
-      ctx.rotate(-Math.PI / 12);
-    } else if (action === 'crouch') {
-      ctx.scale(1.2, 0.6);
-    } else if (action === 'walk') {
-      const bob = Math.abs(Math.sin(walkCycle * Math.PI * 2)) * -4;
-      ctx.translate(0, bob);
-    }
-    
+    ctx.rotate(rotation);
+    if (action === 'sit') ctx.scale(1, 0.92);
     ctx.scale(scale, scale);
 
-    // --- 高级多节段物理尾巴 (The New Elegant Tail Engine) ---
-    if (action !== 'sleep') {
-      ctx.save();
-      const tailBaseX = 26;
-      const tailBaseY = 18;
-      
-      const segments = 12; 
-      const segmentLength = 6.5;
-      const tailWidth = 7;
-      
-      // 尾巴动力学参数 - 调低速度以实现“慢摇”
-      const time = Date.now() / 1000;
-      const speedScale = action === 'walk' ? 4.5 : 1.8; // 从 12/3.5 大幅降低
-      const amplitude = action === 'walk' ? 0.18 : 0.10; // 从 0.25/0.12 降低，增加从容感
-      
-      ctx.translate(tailBaseX, tailBaseY);
-      ctx.fillStyle = color;
-      
-      const leftPoints: {x: number, y: number}[] = [];
-      const rightPoints: {x: number, y: number}[] = [];
-      
-      let currentAngle = action === 'walk' ? -Math.PI / 4 : -Math.PI / 2.2;
-      let curX = 0;
-      let curY = 0;
-
-      for (let i = 0; i <= segments; i++) {
-        // 波形传递
-        const phaseShift = i * 0.45;
-        const wave = Math.sin(time * speedScale - phaseShift) * amplitude;
-        
-        currentAngle += wave;
-        
-        const nextX = curX + Math.cos(currentAngle) * segmentLength;
-        const nextY = curY + Math.sin(currentAngle) * segmentLength;
-        
-        const normalAngle = currentAngle + Math.PI / 2;
-        const width = tailWidth * (1 - (i / segments) * 0.7);
-        
-        leftPoints.push({
-          x: curX + Math.cos(normalAngle) * width,
-          y: curY + Math.sin(normalAngle) * width
-        });
-        rightPoints.push({
-          x: curX - Math.cos(normalAngle) * width,
-          y: curY - Math.sin(normalAngle) * width
-        });
-
-        curX = nextX;
-        curY = nextY;
-      }
-
-      ctx.beginPath();
-      ctx.moveTo(leftPoints[0].x, leftPoints[0].y);
-      for (let i = 1; i < leftPoints.length; i++) {
-        ctx.lineTo(leftPoints[i].x, leftPoints[i].y);
-      }
-      ctx.arc(curX, curY, tailWidth * 0.3, currentAngle - Math.PI/2, currentAngle + Math.PI/2);
-      for (let i = rightPoints.length - 1; i >= 0; i--) {
-        ctx.lineTo(rightPoints[i].x, rightPoints[i].y);
-      }
-      ctx.closePath();
-      ctx.fill();
-      
-      ctx.restore();
-    }
-
-    // --- 身体核心 ---
-    ctx.fillStyle = color;
+    // 1. 躯干
+    const bodyGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, 65);
+    bodyGrad.addColorStop(0, adjustColor(color, 8));
+    bodyGrad.addColorStop(1, adjustColor(color, -12));
+    ctx.fillStyle = bodyGrad;
     ctx.beginPath();
-    ctx.ellipse(0, 0, 45, 55, 0, 0, Math.PI * 2);
+    ctx.ellipse(0, 0, 42, 58, 0, 0, Math.PI * 2);
     ctx.fill();
 
-    // --- 头部 ---
-    ctx.beginPath();
-    ctx.arc(0, -50, 35, 0, Math.PI * 2);
-    ctx.fill();
+    const headY = -62;
+    const headW = 38;
+    const headH = 32;
 
-    // --- 耳朵 ---
+    // 2. 耳朵 - 严格贴合逻辑
     const drawEar = (isLeft: boolean) => {
       ctx.save();
-      const pivotX = isLeft ? -21 : 21;
-      const pivotY = -75;
+      const basePivotX = 18; 
+      const basePivotY = -24; 
+      const pivotX = isLeft ? -basePivotX : basePivotX;
+      const pivotY = headY + basePivotY;
       ctx.translate(pivotX, pivotY);
-      ctx.rotate(isLeft ? -earWiggleVal : earWiggleVal);
-      ctx.translate(-pivotX, -pivotY);
+      
+      const baseRot = 0.5; 
+      const foldRot = 0.3 * earFold; 
+      ctx.rotate(isLeft ? -(baseRot + foldRot) : (baseRot + foldRot));
+      
+      const earH = -42; 
+      const earBaseW = 16;
+      
       ctx.fillStyle = color;
       ctx.beginPath();
-      if (isLeft) {
-        ctx.moveTo(-10, -82);
-        ctx.quadraticCurveTo(-18, -100, -28, -94);
-        ctx.quadraticCurveTo(-36, -90, -32, -65);
-      } else {
-        ctx.moveTo(10, -82);
-        ctx.quadraticCurveTo(18, -100, 28, -94);
-        ctx.quadraticCurveTo(36, -90, 32, -65);
-      }
-      ctx.fill();
-      ctx.fillStyle = '#FFB6C1';
-      ctx.beginPath();
-      if (isLeft) {
-        ctx.moveTo(-14, -84);
-        ctx.quadraticCurveTo(-19, -95, -25, -91);
-        ctx.quadraticCurveTo(-31, -88, -28, -72);
-      } else {
-        ctx.moveTo(14, -84);
-        ctx.quadraticCurveTo(19, -95, 25, -91);
-        ctx.quadraticCurveTo(31, -88, 28, -72);
-      }
-      ctx.fill();
-      ctx.restore();
-    };
-    drawEar(true);
-    drawEar(false);
-
-    // --- 眼睛/感知器 ---
-    const isSleepMood = mood === 'sleep' || action === 'sleep';
-    const isActuallyBlinking = isBlinkingNow && !isSleepMood;
-    ctx.fillStyle = eyeColor;
-    const eyeY = (isSleepMood || isActuallyBlinking) ? -48 : -50;
-    
-    if (isActuallyBlinking || isSleepMood) {
-      ctx.lineWidth = 2.5;
-      ctx.strokeStyle = eyeColor;
-      ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(-18, eyeY); ctx.lineTo(-6, eyeY); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(6, eyeY); ctx.lineTo(18, eyeY); ctx.stroke();
-    } else {
-      ctx.beginPath(); ctx.arc(-12, eyeY, 6.5, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(12, eyeY, 6.5, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#000000';
-      ctx.beginPath(); ctx.arc(-12, -50, 3, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(12, -50, 3, 0, Math.PI * 2); ctx.fill();
-      ctx.fillStyle = '#FFFFFF';
-      ctx.beginPath(); ctx.arc(-11, -51, 1.5, 0, Math.PI * 2); ctx.fill();
-      ctx.beginPath(); ctx.arc(13, -51, 1.5, 0, Math.PI * 2); ctx.fill();
-    }
-
-    ctx.fillStyle = '#FFB6C1';
-    ctx.beginPath(); ctx.arc(0, -43, 3, 0, Math.PI * 2); ctx.fill();
-
-    const drawElegantLeg = (offsetX: number, offsetY: number, height: number, cycle: number, isBack: boolean) => {
-      ctx.save();
-      ctx.translate(offsetX, offsetY);
-      const forwardPhase = (cycle % 1);
-      const isLifting = forwardPhase > 0.5;
-      const swingAngle = Math.sin(cycle * Math.PI * 2) * 0.35;
-      const liftHeight = isLifting ? Math.sin((forwardPhase - 0.5) * Math.PI * 2) * 8 : 0;
-      ctx.rotate(swingAngle);
-      if (isBack) ctx.globalAlpha = 0.55;
-      ctx.fillStyle = color;
-      const legH = height - liftHeight;
-      const taperWidth = 5; 
-      ctx.beginPath();
-      ctx.moveTo(-taperWidth, 0); 
-      ctx.quadraticCurveTo(-taperWidth - 1, legH * 0.4, -2.5, legH); 
-      ctx.arc(0, legH, 2.8, Math.PI, 0, true);
-      ctx.quadraticCurveTo(taperWidth + 1, legH * 0.4, taperWidth, 0);
+      ctx.moveTo(-earBaseW, 5); 
+      ctx.quadraticCurveTo(0, earH, earBaseW, 5);
       ctx.closePath();
       ctx.fill();
+      
+      ctx.fillStyle = '#FFE4E1';
+      ctx.globalAlpha = 0.25;
+      ctx.beginPath();
+      ctx.moveTo(-(earBaseW - 6), 2);
+      ctx.quadraticCurveTo(0, earH + 15, (earBaseW - 6), 2);
+      ctx.fill();
       ctx.restore();
     };
+    drawEar(true); drawEar(false);
 
-    if (action === 'stand' || action === 'walk' || action === 'crouch') {
-      const legBaseY = action === 'crouch' ? 30 : 35;
-      const legHeight = action === 'crouch' ? 18 : 34; 
-      const gait1 = action === 'walk' ? walkCycle : 0;
-      const gait2 = action === 'walk' ? (walkCycle + 0.5) % 1 : 0;
-      drawElegantLeg(-16, legBaseY, legHeight, gait1, false); 
-      drawElegantLeg(14, legBaseY, legHeight, gait2, false);  
-      drawElegantLeg(-24, legBaseY + 2, legHeight - 2, gait2, true); 
-      drawElegantLeg(22, legBaseY + 2, legHeight - 2, gait1, true);  
+    // 3. 头部 - 遮盖耳朵缝隙
+    const headGrad = ctx.createRadialGradient(0, headY, 0, 0, headY, headW + 5);
+    headGrad.addColorStop(0, adjustColor(color, 15));
+    headGrad.addColorStop(0.7, color);
+    headGrad.addColorStop(1, adjustColor(color, -20));
+    ctx.fillStyle = headGrad;
+    ctx.beginPath();
+    ctx.ellipse(0, headY, headW, headH, 0, 0, Math.PI * 2);
+    ctx.fill();
+
+    // --- 新增：额头三彩纹 (智慧纹) ---
+    const drawForeheadMarks = () => {
+      ctx.save();
+      ctx.translate(0, headY - 14); // 定位于双眼之间的上方
+      
+      const markColor = currentEyeState === 'amber' ? '#FFD700' : 'rgba(218, 165, 32, 0.4)';
+      const markGlow = currentEyeState === 'amber' ? 15 : 0;
+      
+      if (markGlow > 0) {
+        ctx.shadowBlur = markGlow;
+        ctx.shadowColor = '#FFD700';
+      }
+      
+      ctx.fillStyle = markColor;
+      
+      // 绘制三道垂直火焰纹路
+      const drawMark = (ox: number, oy: number, w: number, h: number) => {
+        ctx.beginPath();
+        ctx.moveTo(ox, oy);
+        ctx.bezierCurveTo(ox - w, oy + h * 0.5, ox - w * 0.5, oy + h, ox, oy + h);
+        ctx.bezierCurveTo(ox + w * 0.5, oy + h, ox + w, oy + h * 0.5, ox, oy);
+        ctx.fill();
+      };
+      
+      // 中间主纹 (较高)
+      drawMark(0, -6, 3, 14);
+      // 左侧纹
+      ctx.save();
+      ctx.rotate(-0.2);
+      drawMark(-7, -2, 2.5, 10);
+      ctx.restore();
+      // 右侧纹
+      ctx.save();
+      ctx.rotate(0.2);
+      drawMark(7, -2, 2.5, 10);
+      ctx.restore();
+      
+      ctx.restore();
+    };
+    drawForeheadMarks();
+
+    // 4. 五官
+    const eyeY = headY + 3; 
+    const drawEye = (isLeft: boolean) => {
+      const ex = isLeft ? -18 : 18;
+      if (isBlinkingNow) {
+        ctx.strokeStyle = adjustColor(color, -60);
+        ctx.lineWidth = 3; ctx.lineCap = 'round';
+        ctx.beginPath(); ctx.moveTo(ex - 8, eyeY); ctx.lineTo(ex + 8, eyeY); ctx.stroke();
+      } else {
+        const irisGrad = ctx.createRadialGradient(ex, eyeY, 0, ex, eyeY, 9);
+        if (currentEyeState === 'amber') {
+          irisGrad.addColorStop(0, '#FFFACD'); irisGrad.addColorStop(0.4, '#FFD700'); irisGrad.addColorStop(1, '#B87333');
+        } else {
+          irisGrad.addColorStop(0, '#E0FFFF'); irisGrad.addColorStop(0.6, '#40E0D0'); irisGrad.addColorStop(1, '#20B2AA');
+        }
+        ctx.fillStyle = irisGrad;
+        ctx.beginPath(); ctx.arc(ex, eyeY, 9, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#0a0a0a';
+        ctx.beginPath(); ctx.ellipse(ex, eyeY, 2.5, 6, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        ctx.beginPath(); ctx.arc(ex - 3, eyeY - 3, 2, 0, Math.PI * 2); ctx.fill();
+      }
+    };
+    drawEye(true); drawEye(false);
+
+    // 鼻口
+    const noseY = headY + 15;
+    ctx.fillStyle = '#F4A460';
+    ctx.beginPath(); ctx.moveTo(0, noseY); ctx.lineTo(-2, noseY - 2); ctx.lineTo(2, noseY - 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)'; ctx.lineWidth = 1;
+    const mouthY = noseY + 4;
+    ctx.beginPath(); ctx.moveTo(-5, mouthY); ctx.quadraticCurveTo(0, mouthY + 2, 5, mouthY); ctx.stroke();
+
+    // 尾巴
+    ctx.save();
+    ctx.translate(28, 12);
+    let curX = 0, curY = 0, tAng = -0.7;
+    for (let i = 0; i < 12; i++) {
+      tAng += Math.sin((Date.now()/1500) - i*0.45) * 0.15;
+      curX += Math.cos(tAng) * 6; curY += Math.sin(tAng) * 6;
+      ctx.lineWidth = 14 * (1 - i/16); ctx.strokeStyle = adjustColor(color, -i * 1.5);
+      ctx.lineCap = 'round'; ctx.beginPath(); ctx.moveTo(curX - Math.cos(tAng)*6, curY - Math.sin(tAng)*6); ctx.lineTo(curX, curY); ctx.stroke();
     }
-
+    ctx.restore();
     ctx.restore();
   };
 
@@ -287,37 +223,21 @@ const AnimatedCat: React.FC<AnimatedCatProps> = ({
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-
     let raf: number;
     const render = () => {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      const config = {
-        color,
-        action: getDisplayAction(),
-        scale,
-        rotation,
-        mood: getDisplayMood(),
-        isBlinkingNow: isBlinking,
-        earWiggleVal: earWiggle,
-        walkCycle,
-        facingLeft
-      };
-      drawCat(ctx, config);
+      drawCat(ctx, {
+        color: baseColor, action: getDisplayAction(), scale, rotation,
+        isBlinkingNow: isBlinking, walkCycle, facingLeft, earFold: earFoldLevel,
+        currentEyeState: eyeState
+      });
       raf = requestAnimationFrame(render);
     };
-    
     raf = requestAnimationFrame(render);
     return () => cancelAnimationFrame(raf);
-  }, [color, state, scale, rotation, actionOverride, moodOverride, isBlinking, earWiggle, walkCycle, facingLeft]);
+  }, [baseColor, state, scale, rotation, actionOverride, isBlinking, walkCycle, facingLeft, earFoldLevel, eyeState]);
 
-  return (
-    <canvas 
-      ref={canvasRef} 
-      width={200} 
-      height={240} 
-      className="w-full h-full object-contain drop-shadow-2xl transition-transform duration-700"
-    />
-  );
+  return <canvas ref={canvasRef} width={200} height={240} className="w-full h-full object-contain drop-shadow-[0_20px_40px_rgba(0,0,0,0.4)]" />;
 };
 
 export default AnimatedCat;

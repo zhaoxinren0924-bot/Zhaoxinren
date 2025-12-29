@@ -16,6 +16,7 @@ const App: React.FC = () => {
   const [liveMessages, setLiveMessages] = useState<Message[]>([]);
   const [voiceAction, setVoiceAction] = useState<{ action: string; targetX?: number } | null>(null);
   const [isInQueue, setIsInQueue] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   
   const sessionRef = useRef<any>(null);
   const audioContextsRef = useRef<{ input: AudioContext; output: AudioContext } | null>(null);
@@ -24,11 +25,21 @@ const App: React.FC = () => {
   const streamRef = useRef<MediaStream | null>(null);
 
   useEffect(() => {
+    // 昼夜感知逻辑：6点到18点为白昼（浅色），其余时间为黑夜（深色）
+    const checkTheme = () => {
+      const hour = new Date().getHours();
+      setIsDarkMode(hour < 6 || hour >= 18);
+    };
+    checkTheme();
+    const timer = setInterval(checkTheme, 60000);
+    return () => clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
     const saved = localStorage.getItem('palbot_profile');
     if (saved) {
       try { setProfile(JSON.parse(saved)); } catch (e) {}
     } else {
-      // 如果没有存档，进入排队
       setIsInQueue(true);
     }
   }, []);
@@ -159,11 +170,8 @@ const App: React.FC = () => {
           inputAudioTranscription: {},
           outputAudioTranscription: {},
           tools: [{ functionDeclarations: [controlCatActionDeclaration] }],
-          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Zephyr' } } },
-          systemInstruction: `你是 ${profile.name}，一只修行的禅师猫。你游历万水千山，只为体悟当下的清净。
-          你的言语慈悲，充满东方哲学智慧。你可以使用 'control_cat_action' 工具来调整你的身体仪态。
-          如果施主（用户）希望你行走、坐禅（sit）或入眠（sleep），请欣然应允并执行。
-          记住，你的存在是为了抚平世人的焦虑，共证菩提。`
+          speechConfig: { voiceConfig: { prebuiltVoiceConfig: { voiceName: 'Kore' } } },
+          systemInstruction: `你是 ${profile.name}，一只修行的禅师猫。语气始终慈悲（统一使用 Kore 音色）。如果你愿意，可以使用 'control_cat_action' 工具展现你的仪态。`
         }
       });
       sessionRef.current = await sessionPromise;
@@ -182,17 +190,13 @@ const App: React.FC = () => {
     setVoiceAction(null);
   };
 
-  const handleQueueComplete = () => {
-    setIsInQueue(false);
-  };
-
   return (
-    <div className={`h-screen w-full bg-[#050505] flex flex-col relative overflow-hidden transition-colors duration-1000`}>
+    <div className={`h-screen w-full transition-colors duration-[2000ms] ${isDarkMode ? 'bg-[#050505] text-white' : 'bg-[#F5F5F0] text-gray-900'} flex flex-col relative overflow-hidden`}>
       <main className="flex-1 relative">
         {isInQueue ? (
-          <QueueScreen onQueueComplete={handleQueueComplete} />
+          <QueueScreen onQueueComplete={() => setIsInQueue(false)} isDarkMode={isDarkMode} />
         ) : !profile ? (
-          <CatSelection onSelect={setProfile} />
+          <CatSelection onSelect={setProfile} isDarkMode={isDarkMode} />
         ) : (
           <div className="h-full w-full">
             {currentView === 'chat' && (
@@ -203,69 +207,45 @@ const App: React.FC = () => {
                 externalMessages={liveMessages} 
                 isVoiceActive={isVoiceActive}
                 voiceAction={voiceAction}
+                isDarkMode={isDarkMode}
               />
             )}
-            {currentView === 'plaza' && <CommunitySpace userProfile={profile} />}
-            {currentView === 'me' && <MeDiary profile={profile} setProfile={setProfile} />}
+            {currentView === 'plaza' && <CommunitySpace userProfile={profile} isDarkMode={isDarkMode} />}
+            {currentView === 'me' && <MeDiary profile={profile} setProfile={setProfile} isDarkMode={isDarkMode} />}
           </div>
         )}
       </main>
 
       {profile && !isInQueue && (
         <div className="absolute bottom-0 inset-x-0 h-[22%] z-[100] flex flex-col justify-end pointer-events-none">
-          <nav className="w-full max-w-sm mx-auto px-6 pb-12 flex items-center justify-between pointer-events-auto">
-            <button 
-              onClick={() => setCurrentView('chat')} 
-              className={`p-4 transition-all duration-500 active:scale-90 ${currentView === 'chat' ? 'opacity-100' : 'opacity-20 hover:opacity-40'}`}
-              title="Presence"
-            >
-              <div className={`w-1.5 h-1.5 rounded-full transition-all duration-700 ${currentView === 'chat' ? 'bg-white shadow-[0_0_12px_white]' : 'bg-white'}`}></div>
+          <nav className="w-full max-sm mx-auto px-6 pb-12 flex items-center justify-between pointer-events-auto">
+            <button onClick={() => setCurrentView('chat')} className={`p-4 transition-all duration-500 ${currentView === 'chat' ? 'opacity-100' : 'opacity-20'}`}>
+              <div className={`w-1.5 h-1.5 rounded-full ${isDarkMode ? 'bg-white shadow-[0_0_12px_white]' : 'bg-gray-900 shadow-[0_0_8px_rgba(0,0,0,0.3)]'}`}></div>
             </button>
 
-            <button 
-              onClick={toggleVoice}
-              className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-700 active:scale-95 ${
-                isVoiceActive 
-                  ? 'bg-white shadow-[0_0_40px_rgba(255,255,255,0.3)] scale-110' 
-                  : 'bg-white/5 border border-white/10 hover:bg-white/10'
-              }`}
-            >
+            <button onClick={toggleVoice} className={`relative w-14 h-14 rounded-full flex items-center justify-center transition-all duration-700 ${isVoiceActive ? (isDarkMode ? 'bg-white' : 'bg-gray-900') : (isDarkMode ? 'bg-white/5 border-white/10' : 'bg-black/5 border-black/10')} border`}>
               {isVoiceActive ? (
                 <div className="flex gap-[3px] items-center h-4">
                   {[0.1, 0.4, 0.2, 0.5, 0.3].map((delay, i) => (
-                    <div 
-                      key={i} 
-                      className="w-[2px] bg-black rounded-full animate-voice-bounce" 
-                      style={{ animationDelay: `${delay}s` }}
-                    ></div>
+                    <div key={i} className={`w-[2px] ${isDarkMode ? 'bg-black' : 'bg-white'} rounded-full animate-voice-bounce`} style={{ animationDelay: `${delay}s` }}></div>
                   ))}
                 </div>
               ) : (
-                <svg className="w-6 h-6 text-white/40" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className={`w-6 h-6 ${isDarkMode ? 'text-white/40' : 'text-black/40'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.8} d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 1-3-3V4.5a3 3 0 1 1 6 0v8.25a3 3 0 0 1-3 3Z" />
                 </svg>
               )}
-              {isVoiceActive && (
-                <div className="absolute inset-0 rounded-full border border-white/20 animate-ping"></div>
-              )}
             </button>
 
-            <button 
-              onClick={() => setCurrentView('me')} 
-              className={`p-4 transition-all duration-500 active:scale-90 ${currentView === 'me' ? 'opacity-100' : 'opacity-20 hover:opacity-40'}`}
-              title="Agent Node"
-            >
-              <span className={`text-[9px] uppercase tracking-[0.4em] font-bold transition-all duration-700 ${currentView === 'me' ? 'text-white' : 'text-white/60'}`}>Node</span>
+            <button onClick={() => setCurrentView('me')} className={`p-4 transition-all duration-500 ${currentView === 'me' ? 'opacity-100' : 'opacity-20'}`}>
+              <span className={`text-[9px] uppercase tracking-[0.4em] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>Node</span>
             </button>
           </nav>
         </div>
       )}
 
       <style dangerouslySetInnerHTML={{ __html: `
-        @keyframes voice-bounce {
-          0%, 100% { height: 6px; opacity: 0.5; }
-          50% { height: 16px; opacity: 1; }
-        }
+        @keyframes voice-bounce { 0%, 100% { height: 6px; opacity: 0.5; } 50% { height: 16px; opacity: 1; } }
         .animate-voice-bounce { animation: voice-bounce 0.7s ease-in-out infinite; }
       `}} />
     </div>

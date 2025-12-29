@@ -30,13 +30,15 @@ export interface CatProfile {
   personality: PersonalityTraits;
   learnedContext: string;
   adoptedAt: number;
+  earFoldLevel: number; // 0.0 (Upright) to 1.0 (Fully Folded/Fitting)
+  eyeState?: 'default' | 'amber'; // 琥珀眼觉醒状态
   diary?: DiaryEntry[];
 }
 
 export interface Landmark {
   name: string;
   city: string;
-  distanceFromStart: number; // 从广州出发的总里程 (km)
+  distanceFromStart: number;
   prompt: string;
 }
 

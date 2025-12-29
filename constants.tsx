@@ -3,9 +3,7 @@ import { Landmark } from './types';
 
 export const CAT_COLORS = [
   { id: 'obsidian', hex: '#020202', name: '玄曜 (Pure Black)', filter: 'none' },
-  { id: 'snow', hex: '#F8F8F8', name: '素雪 (Pure White)', filter: 'none' },
-  { id: 'umber', hex: '#5D4037', name: '琥珀 (Deep Brown)', filter: 'none' },
-  { id: 'tuxedo', hex: '#020202', name: '云斑 (Black & White)', filter: 'none' }
+  { id: 'snow', hex: '#F8F8F8', name: '素雪 (Pure White)', filter: 'none' }
 ];
 
 export const INITIAL_PERSONALITY = {
@@ -19,7 +17,7 @@ export const INITIAL_PERSONALITY = {
 export const TRAVEL_SPEED_KMH = 200;
 
 export const WORLD_LANDMARKS: Landmark[] = [
-  { name: "广州塔 (Canton Tower)", city: "Guangzhou", distanceFromStart: 0, prompt: "The Canton Tower at night with purple and blue LED lights reflecting off the Pearl River." },
+  { name: "南华寺 (Nanhua Temple)", city: "Shaoguan", distanceFromStart: 0, prompt: "The ancient Nanhua Temple in Shaoguan, Zen architecture with curved roofs, surrounded by ancient cypress trees and misty mountains, ethereal incense smoke rising." },
   { name: "故宫 (Forbidden City)", city: "Beijing", distanceFromStart: 1900, prompt: "The majestic red walls and golden roofs of the Forbidden City under a light snowfall." },
   { name: "富士山 (Mount Fuji)", city: "Tokyo", distanceFromStart: 4500, prompt: "Mount Fuji with a snow-capped peak and cherry blossoms in the foreground at sunrise." },
   { name: "红场 (Red Square)", city: "Moscow", distanceFromStart: 11500, prompt: "Saint Basil's Cathedral in Red Square with its colorful onion domes under a twilight sky." },
@@ -28,5 +26,5 @@ export const WORLD_LANDMARKS: Landmark[] = [
   { name: "自由女神像 (Statue of Liberty)", city: "New York", distanceFromStart: 21000, prompt: "The Statue of Liberty in New York harbor with the Manhattan skyline in the distant haze." },
   { name: "金门大桥 (Golden Gate Bridge)", city: "San Francisco", distanceFromStart: 25000, prompt: "The Golden Gate Bridge peeking through rolling white fog in the early morning." },
   { name: "歌剧院 (Opera House)", city: "Sydney", distanceFromStart: 38000, prompt: "The Sydney Opera House with its white sails glowing against the deep blue harbor water." },
-  { name: "起点 (回到了家)", city: "Guangzhou", distanceFromStart: 50000, prompt: "Back to the lush green hills of Baiyun Mountain in Guangzhou with the city skyline far away." }
+  { name: "南华寺 (回归祖庭)", city: "Shaoguan", distanceFromStart: 50000, prompt: "Returning to the serene Caoqi River and the ancient gates of Nanhua Temple, late afternoon sun filtering through leaves." }
 ];

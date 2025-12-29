@@ -18,11 +18,15 @@ export function encode(bytes: Uint8Array): string {
   return btoa(binary);
 }
 
+/**
+ * 【严格解码】遵循 Gemini TTS 24000Hz PCM 标准
+ * 针对 Kore/Zephyr 等音色进行 16-bit 原始流还原
+ */
 export async function decodeAudioData(
   data: Uint8Array,
   ctx: AudioContext,
-  sampleRate: number,
-  numChannels: number,
+  sampleRate: number = 24000,
+  numChannels: number = 1,
 ): Promise<AudioBuffer> {
   const dataInt16 = new Int16Array(data.buffer);
   const frameCount = dataInt16.length / numChannels;
