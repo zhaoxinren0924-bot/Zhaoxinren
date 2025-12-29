@@ -112,7 +112,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       const catMsg: Message = { role: 'cat', text: response, timestamp: Date.now() };
       setLocalMessages(prev => [...prev, catMsg]);
       
-      // 动态觉醒琥珀眼：当提及相关关键词或交流超过 3 轮
       let newEyeState = profile.eyeState;
       const triggerWords = ['眼', '琥珀', '智慧', '光', '开悟', '真实'];
       const shouldAwaken = triggerWords.some(w => userMsg.text.includes(w)) || allMessages.length > 6;
@@ -134,7 +133,6 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const themeText = isDarkMode ? 'text-white' : 'text-gray-900';
   const themeSubtext = isDarkMode ? 'text-white/30' : 'text-gray-400';
-  const themeBorder = isDarkMode ? 'border-white/10' : 'border-gray-900/10';
 
   return (
     <div className={`h-full w-full relative overflow-hidden flex flex-col transition-colors duration-[2000ms] ${isDarkMode ? 'bg-black text-white' : 'bg-[#FDFDF8] text-gray-900'}`} onMouseMove={e => setMousePos({ x: (e.clientX/window.innerWidth)*2-1, y: (e.clientY/window.innerHeight)*2-1 })}>
@@ -149,57 +147,45 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         <div className={`absolute inset-0 ${isDarkMode ? 'bg-[radial-gradient(circle_at_center,transparent_0%,black_100%)] opacity-80' : 'bg-[radial-gradient(circle_at_center,transparent_0%,#FDFDF8_100%)] opacity-50'}`} />
       </div>
 
-      {/* 头部导航/状态栏 */}
-      <header className="relative z-40 h-[15vh] px-16 flex items-center justify-between pointer-events-none">
+      {/* 1. 头部区域 (10vh) */}
+      <header className="relative z-40 h-[10vh] px-16 flex items-center justify-between pointer-events-none">
         <div className="flex flex-col">
-          <div className="flex items-center gap-3 mb-2">
+          <div className="flex items-center gap-3 mb-1">
             <div className={`h-px w-6 ${isDarkMode ? 'bg-white/30' : 'bg-gray-300'}`} />
             <span className={`text-[8px] font-bold uppercase tracking-[0.6em] ${themeSubtext}`}>Karma Origin / 缘起点</span>
           </div>
-          <div className={`relative pl-4 border-l-[1px] ${themeBorder}`}>
-            <h2 className={`text-2xl font-serif italic ${isDarkMode ? 'text-white/95' : 'text-gray-900'} leading-none`}>
-              {displayLandmarkName} <span className={`text-base font-sans not-italic font-light opacity-30 ml-2 tracking-widest uppercase`}>{displayCityCode}</span>
-            </h2>
-          </div>
+          <h2 className={`text-xl font-serif italic ${isDarkMode ? 'text-white/95' : 'text-gray-900'} leading-none`}>
+            {displayLandmarkName} <span className={`text-[10px] font-sans not-italic font-light opacity-30 ml-2 tracking-widest uppercase`}>{displayCityCode}</span>
+          </h2>
         </div>
 
-        <div className="absolute left-1/2 -translate-x-1/2 top-10 flex flex-col items-center">
-          <span className={`text-[8px] font-bold uppercase tracking-[0.4em] ${themeSubtext} mb-2`}>Alignment / 威仪贴合</span>
-          <div className={`w-32 h-[1px] ${isDarkMode ? 'bg-white/5' : 'bg-gray-900/5'} relative`}>
-            <div className={`absolute left-0 top-0 h-full ${isDarkMode ? 'bg-white/40 shadow-[0_0_8px_white]' : 'bg-gray-900/60'} transition-all duration-1000`} style={{ width: `${(profile.earFoldLevel || 0) * 100}%` }} />
-          </div>
-        </div>
-
-        <div className="flex gap-12 items-start text-right">
+        <div className="flex gap-12 items-center text-right">
           <div className="flex flex-col items-end">
-            <span className={`text-[8px] font-bold uppercase tracking-[0.6em] ${themeSubtext} mb-2`}>Pilgrimage / 行脚里程</span>
-            <div className="flex items-baseline gap-1">
-              <span className={`text-3xl font-mono font-bold tracking-tighter ${isDarkMode ? 'text-white/80' : 'text-gray-900/80'}`}>
-                {totalDistance.toFixed(1).padStart(7, '0')}
-              </span>
-              <span className={`text-[9px] font-mono opacity-20 font-bold uppercase`}>km</span>
-            </div>
+             <span className={`text-[8px] font-bold uppercase tracking-[0.4em] ${themeSubtext} mb-1`}>Alignment / 威仪贴合</span>
+             <div className={`w-24 h-[1px] ${isDarkMode ? 'bg-white/5' : 'bg-gray-900/5'} relative`}>
+               <div className={`absolute left-0 top-0 h-full ${isDarkMode ? 'bg-white/40 shadow-[0_0_8px_white]' : 'bg-gray-900/60'} transition-all duration-1000`} style={{ width: `${(profile.earFoldLevel || 0) * 100}%` }} />
+             </div>
           </div>
-          <div className="flex flex-col items-end min-w-[100px] pointer-events-auto">
-             <button onClick={() => setIsAudioEnabled(!isAudioEnabled)} className={`text-[8px] font-bold uppercase tracking-[0.6em] ${themeSubtext} mb-2 hover:opacity-100 transition-opacity`}>
-              {isAudioEnabled ? 'Voice ON / 法音流转' : 'Voice OFF / 默然修持'}
+          <div className="flex flex-col items-end pointer-events-auto">
+             <button onClick={() => setIsAudioEnabled(!isAudioEnabled)} className={`text-[7px] font-bold uppercase tracking-[0.6em] ${themeSubtext} hover:opacity-100 transition-opacity`}>
+              {isAudioEnabled ? 'Voice ON' : 'Voice OFF'}
             </button>
-            <span className={`text-3xl font-mono ${isDarkMode ? 'text-white/80' : 'text-gray-900/80'} animate-pulse-slow`}>
+            <span className={`text-xl font-mono ${isDarkMode ? 'text-white/80' : 'text-gray-900/80'}`}>
               {temperature}
             </span>
           </div>
         </div>
       </header>
 
-      {/* 消息历史区域 */}
-      <section className="relative z-20 h-[25vh] w-full flex flex-col justify-end px-16 pb-6">
-        <div ref={scrollRef} className="max-h-full overflow-y-auto no-scrollbar space-y-8 mask-fade-top-bottom">
+      {/* 2. 消息历史区域 (25vh) */}
+      <section className="relative z-20 h-[25vh] w-full flex flex-col justify-end px-16 pb-4">
+        <div ref={scrollRef} className="max-h-full overflow-y-auto no-scrollbar space-y-10 mask-fade-top-bottom pr-4">
           {allMessages.slice(-2).map((msg, i) => (
             <div key={i} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-in fade-in slide-in-from-bottom-4 duration-[1000ms]`}>
-              <div className="flex items-center gap-3 mb-2 opacity-20">
-                <span className={`text-[7px] uppercase tracking-[0.5em] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{msg.role === 'user' ? 'Heart Wave / 心念' : profile.name}</span>
+              <div className="flex items-center gap-3 mb-2 opacity-30">
+                <span className={`text-[7px] uppercase tracking-[0.5em] font-bold ${isDarkMode ? 'text-white' : 'text-gray-900'}`}>{msg.role === 'user' ? 'Heart Wave' : profile.name}</span>
               </div>
-              <p className={`max-w-[50%] font-serif text-xl leading-relaxed tracking-wide ${msg.role === 'user' ? (isDarkMode ? 'text-white/20 italic text-right' : 'text-gray-400 italic text-right') : (isDarkMode ? 'text-white/95 drop-shadow-xl' : 'text-gray-800')}`}>
+              <p className={`max-w-[40%] font-serif text-lg leading-relaxed tracking-wide ${msg.role === 'user' ? (isDarkMode ? 'text-white/20 italic text-right' : 'text-gray-400 italic text-right') : (isDarkMode ? 'text-white/95 drop-shadow-2xl' : 'text-gray-800')}`}>
                 {msg.text}
               </p>
             </div>
@@ -207,10 +193,11 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
         </div>
       </section>
 
-      {/* 猫咪展示区域 */}
-      <section className="relative z-10 h-[45vh] w-full pointer-events-none flex items-center justify-center">
-        <div className="relative -translate-y-24 flex flex-col items-center">
-          <div className={`absolute bottom-10 left-1/2 -translate-x-1/2 w-[350px] h-[60px] ${isDarkMode ? 'bg-white/5' : 'bg-black/5'} blur-[60px] rounded-[100%] opacity-20`} />
+      {/* 3. 猫咪展示区域 (50vh) - 进一步上移 (-mt-16) 以获得更好的视觉呈现 */}
+      <section className="relative z-10 h-[50vh] w-full pointer-events-none flex items-center justify-center -mt-16 transition-all duration-1000">
+        <div className="relative flex flex-col items-center">
+          {/* 猫咪阴影 */}
+          <div className={`absolute bottom-6 left-1/2 -translate-x-1/2 w-[300px] h-[50px] ${isDarkMode ? 'bg-white/5' : 'bg-black/5'} blur-[50px] rounded-[100%] opacity-20`} />
           
           <div className="relative" style={{ width: '400px', height: '400px' }}>
             <AnimatedCat 
@@ -222,20 +209,20 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
               eyeState={profile.eyeState || 'default'}
               actionOverride={voiceAction?.action as any || (isTyping ? 'stand' : 'sit')}
               walkCycle={walkCycle}
-              scale={1.35}
+              scale={1.25}
             />
           </div>
         </div>
       </section>
 
-      {/* 底部输入区域 */}
+      {/* 4. 底部输入区域 (15vh) */}
       <footer className="relative z-30 h-[15vh] w-full flex items-center justify-center px-16">
         {!isVoiceActive && (
-          <form onSubmit={handleSendText} className="w-full max-w-lg relative group -translate-y-8">
+          <form onSubmit={handleSendText} className="w-full max-w-lg relative group">
             <input 
               type="text" value={inputText} onChange={e => setInputText(e.target.value)}
               placeholder="Offer your thoughts / 呈送心念..."
-              className={`w-full bg-transparent border-b ${isDarkMode ? 'border-white/5 focus:border-white/20 text-white/30' : 'border-gray-900/10 focus:border-gray-900/30 text-gray-900/40'} py-3 outline-none font-serif text-center text-lg tracking-[0.2em] placeholder:opacity-20 transition-all duration-1000`}
+              className={`w-full bg-transparent border-b ${isDarkMode ? 'border-white/5 focus:border-white/20 text-white/30' : 'border-gray-900/10 focus:border-gray-900/30 text-gray-900/40'} py-4 outline-none font-serif text-center text-lg tracking-[0.2em] placeholder:opacity-20 transition-all duration-1000`}
             />
           </form>
         )}
@@ -244,9 +231,8 @@ const ChatInterface: React.FC<ChatInterfaceProps> = ({
       <style dangerouslySetInnerHTML={{ __html: `
         .no-scrollbar::-webkit-scrollbar { display: none; }
         .mask-fade-top-bottom { 
-          mask-image: linear-gradient(to bottom, transparent 0%, black 15%, black 85%, transparent 100%); 
+          mask-image: linear-gradient(to bottom, transparent 0%, black 20%, black 80%, transparent 100%); 
         }
-        .animate-pulse-slow { animation: pulse 8s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
       `}} />
     </div>
   );
