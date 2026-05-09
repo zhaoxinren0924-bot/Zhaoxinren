@@ -6,7 +6,16 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "engine:check": "rm -rf .tmp/engine-check && tsc --outDir .tmp/engine-check --rootDir . --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --types node --noEmit false services/aphlaEngine.ts scripts/checkAphlaEngine.ts && node .tmp/engine-check/scripts/checkAphlaEngine.js",
+    "renzero:check": "rm -rf .tmp/renzero-check && tsc --outDir .tmp/renzero-check --rootDir . --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --types node --noEmit false services/renzeroProductArchitecture.ts scripts/checkRenzeroArchitecture.ts && node .tmp/renzero-check/scripts/checkRenzeroArchitecture.js",
+    "store:check": "rm -rf .tmp/store-check && tsc --outDir .tmp/store-check --rootDir . --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --types node --noEmit false services/renzeroProductArchitecture.ts services/renzeroStore.ts scripts/checkRenzeroStore.ts && node .tmp/store-check/scripts/checkRenzeroStore.js",
+    "api:check": "rm -rf .tmp/api-check && tsc --outDir .tmp/api-check --rootDir . --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --types node --noEmit false services/renzeroProductArchitecture.ts services/renzeroStore.ts services/renzeroApi.ts scripts/checkRenzeroApi.ts && node .tmp/api-check/scripts/checkRenzeroApi.js",
+    "demo:run": "rm -rf .tmp/demo-run && tsc --outDir .tmp/demo-run --rootDir . --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --types node --noEmit false services/renzeroProductArchitecture.ts services/renzeroStore.ts services/renzeroApi.ts services/aphlaEngine.ts scripts/runRenzeroDemo.ts && node .tmp/demo-run/scripts/runRenzeroDemo.js",
+    "missing:report": "rm -rf .tmp/missing-report && tsc --outDir .tmp/missing-report --rootDir . --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --types node --noEmit false services/renzeroProductArchitecture.ts scripts/reportMissingCapabilities.ts && node .tmp/missing-report/scripts/reportMissingCapabilities.js",
+    "sources:report": "rm -rf .tmp/sources-report && tsc --outDir .tmp/sources-report --rootDir . --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --types node --noEmit false services/renzeroProductArchitecture.ts services/renzeroStore.ts services/renzeroApi.ts scripts/reportSources.ts && node .tmp/sources-report/scripts/reportSources.js",
+    "prd:coverage": "rm -rf .tmp/prd-coverage && tsc --outDir .tmp/prd-coverage --rootDir . --module NodeNext --moduleResolution NodeNext --target ES2022 --skipLibCheck --types node --noEmit false services/renzeroProductArchitecture.ts scripts/reportPrdCoverage.ts && node .tmp/prd-coverage/scripts/reportPrdCoverage.js"
   },
   "dependencies": {
     "react": "^19.2.3",
