@@ -6,6 +6,8 @@ import {
   type PredictionFailureRecord,
   type RenzeroDatabase,
   type SourceCatalogRecord,
+  type SourceLayer,
+  type VerificationResultRecord,
   type UserReadModel,
 } from './renzeroStore.js';
 
@@ -59,6 +61,21 @@ export type CreatorInternalsResponse = Pick<
   'edge_confidence_log' | 'agent_telemetry' | 'active_learning_designs' | 'model_configs' | 'source_timing_aggregates'
 >;
 
+export type VerifyPredictionInput = {
+  predictionId: string;
+  outcome: Extract<VerificationResultRecord['outcome'], 'CONFIRMED' | 'REFUTED' | 'INCONCLUSIVE'>;
+  verifiedAt: string;
+  leadTimeDays?: number;
+  causalEdge?: string;
+  earliestSignalSource?: string;
+  earliestSignalTs?: string;
+  marketConsensusTs?: string;
+  topicLayer?: SourceLayer;
+  failureType?: PredictionFailureRecord['failure_type'];
+  rootCause?: string;
+  humanAnnotation?: string;
+};
+
 export const createUserSession = (subject: string): ApiSession => ({
   audience: 'user',
   subject,
@@ -97,6 +114,33 @@ const buildAnnotationGate = (database: RenzeroDatabase): CreatorAnnotationGate =
     unannotatedFailures,
     status: 'clear',
     message: 'All clear — publication allowed.',
+  };
+};
+
+const clampConfidence = (value: number) => Math.min(0.98, Math.max(0.1, Math.round(value * 1000) / 1000));
+
+const latestEdgeConfidence = (database: RenzeroDatabase, edge: string) => {
+  const latest = [...database.edge_confidence_log]
+    .filter((record) => record.edge === edge)
+    .sort((left, right) => right.updated_at.localeCompare(left.updated_at))[0];
+  return {
+    p: latest?.new_confidence ?? latest?.p ?? 0.5,
+    n: Math.max(latest?.n_verifications ?? 0, 1),
+  };
+};
+
+export const naturalGradientEdgeUpdate = (
+  p: number,
+  nVerifications: number,
+  outcome: Extract<VerificationResultRecord['outcome'], 'CONFIRMED' | 'REFUTED'>,
+  learningRate = 0.5,
+) => {
+  const safeN = Math.max(nVerifications, 1);
+  const step = learningRate * p * (1 - p) / safeN;
+  const signedStep = outcome === 'CONFIRMED' ? step : -step * 2.5;
+  return {
+    step,
+    newConfidence: clampConfidence(p + signedStep),
   };
 };
 
@@ -241,5 +285,88 @@ export const annotateFailure = (
     prediction_failure_records: database.prediction_failure_records.map((record) =>
       record.id === failureId ? { ...record, ...annotation } : record,
     ),
+  };
+};
+
+export const verifyPrediction = (database: RenzeroDatabase, session: ApiSession, input: VerifyPredictionInput): RenzeroDatabase => {
+  requireAudience(session, 'creator');
+  const verifiedAt = input.verifiedAt;
+  const leadTimeDays = input.leadTimeDays ?? 0;
+  const verification: VerificationResultRecord = {
+    id: `vr-${input.predictionId}-${input.outcome.toLowerCase()}`,
+    judgment_id: input.predictionId,
+    outcome: input.outcome,
+    lead_time_days: leadTimeDays,
+    missed_alpha: input.outcome === 'REFUTED',
+    verified_at: verifiedAt,
+  };
+
+  const existingVerificationIndex = database.verification_results.findIndex((record) => record.judgment_id === input.predictionId);
+  const verificationResults =
+    existingVerificationIndex >= 0
+      ? database.verification_results.map((record, index) => (index === existingVerificationIndex ? verification : record))
+      : [...database.verification_results, verification];
+
+  const sourceTimingRecords =
+    input.outcome === 'CONFIRMED' && input.earliestSignalSource && input.earliestSignalTs && input.marketConsensusTs && input.topicLayer
+      ? [
+          ...database.source_timing_records,
+          {
+            id: `str-${input.predictionId}-${input.earliestSignalSource.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`,
+            judgment_id: input.predictionId,
+            earliest_signal_source: input.earliestSignalSource,
+            earliest_signal_ts: input.earliestSignalTs,
+            market_consensus_ts: input.marketConsensusTs,
+            lead_days: leadTimeDays,
+            topic_layer: input.topicLayer,
+          },
+        ]
+      : database.source_timing_records;
+
+  const edgeConfidenceLog =
+    input.causalEdge && (input.outcome === 'CONFIRMED' || input.outcome === 'REFUTED')
+      ? (() => {
+          const current = latestEdgeConfidence(database, input.causalEdge);
+          const update = naturalGradientEdgeUpdate(current.p, current.n, input.outcome);
+          return [
+            ...database.edge_confidence_log,
+            {
+              id: `ec-${input.predictionId}-${input.outcome.toLowerCase()}`,
+              edge: input.causalEdge,
+              old_confidence: current.p,
+              new_confidence: update.newConfidence,
+              p: update.newConfidence,
+              n_verifications: current.n + 1,
+              rule_applied:
+                input.outcome === 'CONFIRMED'
+                  ? 'natural_gradient_confirmed' as const
+                  : 'natural_gradient_refuted' as const,
+              updated_at: verifiedAt,
+            },
+          ];
+        })()
+      : database.edge_confidence_log;
+
+  const predictionFailureRecords =
+    input.outcome === 'REFUTED'
+      ? [
+          ...database.prediction_failure_records,
+          {
+            id: `pf-${input.predictionId}`,
+            judgment_id: input.predictionId,
+            failure_type: input.failureType ?? 'SIGNAL',
+            human_annotation: input.humanAnnotation,
+            root_cause: input.rootCause,
+            causal_chain_iris: input.causalEdge ? [`iri:${input.causalEdge.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`] : undefined,
+          },
+        ]
+      : database.prediction_failure_records;
+
+  return {
+    ...database,
+    verification_results: verificationResults,
+    source_timing_records: sourceTimingRecords,
+    edge_confidence_log: edgeConfidenceLog,
+    prediction_failure_records: predictionFailureRecords,
   };
 };

@@ -11,6 +11,8 @@ import {
   getUserSources,
   getUserToday,
   getUserTrackRecord,
+  naturalGradientEdgeUpdate,
+  verifyPrediction,
 } from '../services/renzeroApi.js';
 import { createSeedRenzeroDatabase } from '../services/renzeroStore.js';
 
@@ -73,5 +75,38 @@ const annotated = updated.prediction_failure_records.find((record) => record.id 
 assert.equal(annotated?.human_annotation, 'Scope failure reviewed by operator.');
 assert.equal(annotated?.root_cause, 'Prediction statement covered too broad a supplier set.');
 assert.equal(getCreatorPipeline(updated, creatorSession).annotationGate.unannotatedFailures, 0, 'annotation gate should clear after creator annotation write');
+
+const gradientUpdate = naturalGradientEdgeUpdate(0.5, 1, 'CONFIRMED');
+assert.equal(gradientUpdate.step, 0.125, 'natural gradient should use lr × p × (1-p) / n');
+assert.equal(gradientUpdate.newConfidence, 0.625, 'confirmed outcome should increase confidence by the natural-gradient step');
+assert.equal(naturalGradientEdgeUpdate(0.9, 50, 'REFUTED').newConfidence, 0.898, 'refuted outcome should apply the asymmetric negative update');
+
+const verified = verifyPrediction(updated, creatorSession, {
+  predictionId: 'jp-energy-constraint',
+  outcome: 'CONFIRMED',
+  verifiedAt: '2026-05-12T00:00:00.000Z',
+  leadTimeDays: 12,
+  causalEdge: 'L0 energy availability -> L3 hardware deployment',
+  earliestSignalSource: 'EIA power demand monitor',
+  earliestSignalTs: '2026-04-30T00:00:00.000Z',
+  marketConsensusTs: '2026-05-12T00:00:00.000Z',
+  topicLayer: 'L0_ENERGY',
+});
+assert.ok(verified.verification_results.some((record) => record.judgment_id === 'jp-energy-constraint' && record.outcome === 'CONFIRMED'), 'verifyPrediction should write verification results');
+assert.ok(verified.source_timing_records.some((record) => record.judgment_id === 'jp-energy-constraint' && record.topic_layer === 'L0_ENERGY'), 'confirmed verification should write source timing evidence');
+assert.ok(verified.edge_confidence_log.some((record) => record.edge === 'L0 energy availability -> L3 hardware deployment' && record.rule_applied === 'natural_gradient_confirmed'), 'confirmed verification should write natural-gradient edge audit log');
+
+const refuted = verifyPrediction(verified, creatorSession, {
+  predictionId: 'jp-policy-test',
+  outcome: 'REFUTED',
+  verifiedAt: '2026-05-13T00:00:00.000Z',
+  leadTimeDays: 0,
+  causalEdge: 'L5 policy tightening -> L2 supply delay',
+  failureType: 'DIRECTION',
+  rootCause: 'Policy waiver invalidated the expected restriction path.',
+});
+assert.ok(refuted.prediction_failure_records.some((record) => record.judgment_id === 'jp-policy-test' && record.failure_type === 'DIRECTION'), 'refuted verification should create failure taxonomy entry');
+assert.ok(refuted.edge_confidence_log.some((record) => record.edge === 'L5 policy tightening -> L2 supply delay' && record.rule_applied === 'natural_gradient_refuted'), 'refuted verification should write asymmetric natural-gradient edge audit log');
+assert.throws(() => verifyPrediction(refuted, userSession, { predictionId: 'blocked', outcome: 'CONFIRMED', verifiedAt: '2026-05-14T00:00:00.000Z' }), /Forbidden/, 'user session must not verify predictions');
 
 console.log('Renzero API checks passed');
